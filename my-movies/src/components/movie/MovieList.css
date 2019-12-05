@@ -1,0 +1,10 @@
+.movie-list {
+    display: flex;
+    flex-direction: column;
+}
+
+
+.movie-list > div {
+    margin: 5px 0;
+}
+

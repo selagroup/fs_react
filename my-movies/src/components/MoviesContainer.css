@@ -1,0 +1,11 @@
+.movies-container{
+    display: flex;
+}
+.movies-list-container {
+    flex:3;
+    margin-right: 10px;
+}
+.movies-form {
+    flex:1;
+    
+}
