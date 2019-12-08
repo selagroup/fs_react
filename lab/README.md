@@ -1,5 +1,207 @@
 # Full Stack React + Node.js User Admin Lab
 
+# Node.js
+
+## step 0 - Setup the server
+```sh
+npx express-generator-typescript "user-admin-api"
+```
+## step 0.5 - install packages 
+- cd into the project folder and install the following packages
+```sh
+npm install cors http-errors @types/cors @types/http-errors
+``` 
+
+## step 1 
+
+### use the mockdb and update port
+- update the `src\daos\MockDb\MockDb.json` file :
+``` json
+{
+  "users": [
+    {
+      "usernname": "Sean Maxwell",
+      "email": "sean.maxwell@gmail.com",
+      "id": 159123164363
+    },
+    {
+      "username": "Gordan Freeman",
+      "email": "gordan.freeman@halflife.com",
+      "id": 906524522143
+    },
+    {
+      "username": "John Smith",
+      "email": "jsmith@yahoo.com",
+      "id": 357437875835
+    }
+  ]
+}
+```
+- update the `src\entities\User.ts` interface and class defenition, change name to username:
+```ts
+
+export interface IUser {
+    id?: number;
+    username: string;
+    email: string;
+}
+
+export class User implements IUser {
+
+    public id?: number;
+    public username: string;
+    public email: string;
+
+    constructor(nameOrUser: string | IUser, email?: string) {
+        if (typeof nameOrUser === 'string') {
+            this.username = nameOrUser;
+            this.email = email || '';
+        } else {
+            this.username = nameOrUser.username;
+            this.email = nameOrUser.email;
+        }
+    }
+}
+
+```
+- Under `src\env` update the `developent.env` variable `PORT` value to differetn port value.
+
+
+## step 2 
+
+### create a controller
+
+- Under `src\shared` folder create a new `apiResponse.ts` file that will include an interface and factory functions for generating a unified reponse object.
+
+```ts
+export interface IApiResponse {
+    data: any;
+    error: string | undefined;
+    errorCode: number;
+}
+export const ApiResponse = {
+    OK(data: any): IApiResponse {
+        return  {
+            data,
+            error: undefined,
+            errorCode: 0,
+        };
+    },
+    ERROR(error: string, errorCode: number): IApiResponse {
+        return {
+            data: undefined,
+            error,
+            errorCode,
+        };
+    }
+}
+```
+- add an export to the `src\shared\index.ts`:
+```ts
+... 
+    export * from './apiResponse';
+...
+```
+- Create a new `users.controller.ts` file under a new `src\controllers` folder :
+```ts
+import { UserDao } from '@daos';
+import { logger } from '@shared';
+import { Request, Response } from 'express';
+import { BAD_REQUEST, CREATED, OK } from 'http-status-codes';
+import { paramMissingError } from '@shared';
+import { ApiResponse } from '@shared';
+import createHttpError = require('http-errors');
+
+const userDao = new UserDao();
+
+export const getUser = async (req: Request, res: Response) => {
+    try {
+        const users = await userDao.getAll();
+        return res.send( ApiResponse.OK(users) );
+    } catch (err) {
+       throw createHttpError(BAD_REQUEST);
+    }
+};
+
+export const updateUser = async (req: Request, res: Response) => {
+    try {
+        const user  = req.body;
+        if (!user) {
+            return res.status(BAD_REQUEST).json({
+                error: paramMissingError,
+            });
+        }
+        user.id = Number(user.id);
+        await userDao.update(user);
+        return res.send(ApiResponse.OK(user));
+    } catch (err) {
+        logger.error(err.message, err);
+        return res.status(BAD_REQUEST).json({
+            error: err.message,
+        });
+    }
+};
+
+```
+
+## step 3
+
+### setup routes
+
+- Update the user routes file under `src\routes\User.ts` to use the controller methods:
+```ts
+
+import { Router, Express } from 'express';
+import * as UserController from '../controllers/users.controller';
+
+const router = Router();
+router.get('/', UserController.getUser  );
+router.post('/', UserController.createUser );
+router.put('/:id', UserController.updateUser);
+
+export default router;
+
+``` 
+## step 4 
+### update error handler, catch all route and setup cors
+- add the cors middleware to the `src\Server.ts` file, add the import:
+```ts
+    import cors from 'cors';
+```
+- Then use the middleware, add add to the top of the middlwares used.
+```ts
+app.use(cors());
+```
+- In the `src\Server.ts` file update the catch all route to throw a 404 error.
+```ts
+...
+    app.get('*', (req: Request, res: Response, next: NextFunction) => {
+        next(createHttpError(NOT_FOUND));
+    });
+... 
+```
+- In the `src\Server.ts` create a new error handling middleware that responsds with an api error response
+```ts
+...
+    
+    app.use( (err: HttpError & Error, req: Request, res: Response, next: NextFunction) => {
+        res.status(err.statusCode).json( ApiResponse.ERROR(err.message, err.statusCode));
+    });
+
+...
+```
+
+## Step 5
+
+### Run the server
+- run the server:
+```sh
+npm run start:dev
+```
+- open postman and test.
+
+
+
 # React
 
 ## step 0 - Setup the client
